@@ -38,7 +38,7 @@ Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
 
 function initDisplay() {
     spi.setup({mosi: 13, sck: 14});
-    g = require("SSD1306").connectSPI(spi, 12, 16, null, {height: 32});
+    g = require("SSD1306").connectSPI(spi, 12, 16, '', {height: 32});
 }
 
 function initClock() {
@@ -103,6 +103,7 @@ function showBattery() {
 
 E.on('init', () => {
     pinMode(2, 'input_pullup');
+    pinMode(0, 'input_pullup');
 
     setWatch(function(e) {
         selectedMode = ((selectedMode + 1) === modes.length)
@@ -110,6 +111,10 @@ E.on('init', () => {
             : selectedMode + 1;
         console.log(modes[selectedMode]);
     }, 2, { repeat: true, edge: 'rising', debounce: 50 });
+
+    setWatch(function(e) {
+        console.log('Button H clicked');
+    }, 0, { repeat: true, edge: 'rising', debounce: 50 });
 
     initDisplay();
     initClock();
