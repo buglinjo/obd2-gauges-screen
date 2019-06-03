@@ -2,10 +2,9 @@ const ssid = 'WiFi_OBDII';
 const host = '192.168.0.10';
 const port = '35000';
 
-require("FontDylex7x13").add(Graphics);
-
 const wifi = require('Wifi');
 const net = require('net');
+const logos = require('logos');
 const spi = new SPI();
 
 let socket;
@@ -15,44 +14,7 @@ let g;
 const modes = ['clock', 'battery'];
 let selectedMode = 0;
 
-var battery = {
-  width : 32, height : 32, bpp : 1,
-  transparent : 0,
-  buffer : new Uint8Array([
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000001, 0b11110000, 0b00011111, 0b00000000, //        #####       #####
-    0b00000010, 0b00001000, 0b00100000, 0b10000000, //       #     #     #     #
-    0b00000010, 0b00001000, 0b00100000, 0b10000000, //       #     #     #     #
-    0b00000010, 0b00001000, 0b00100000, 0b10000000, //       #     #     #     #
-    0b00000010, 0b00001000, 0b00100000, 0b10000000, //       #     #     #     #
-    0b00000010, 0b00001000, 0b00100000, 0b10000000, //       #     #     #     #
-    0b00011111, 0b11111111, 0b11111111, 0b11110000, //    #########################
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010011, 0b11111000, 0b00111111, 0b10010000, //    #  #######     #######  #
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010000, 0b01000000, 0b00000000, 0b00010000, //    #     #                 #
-    0b00010000, 0b00000000, 0b00000000, 0b00010000, //    #                       #
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00011110, 0b00000000, 0b00000000, 0b11110000, //    ####                 ####
-    0b00011111, 0b11111111, 0b11111111, 0b11110000, //    #########################
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-    0b00000000, 0b00000000, 0b00000000, 0b00000000, //
-  ]).buffer
-};
+require("FontDylex7x13").add(Graphics);
 
 Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
     let gBuffer = Graphics.createArrayBuffer(128, h, 2, {msb: true});
@@ -76,7 +38,7 @@ Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
 
 function initDisplay() {
     spi.setup({mosi: 13, sck: 14});
-    g = require("SSD1306").connectSPI(spi, 12, 16, draw, {height: 32});
+    g = require("SSD1306").connectSPI(spi, 12, 16, null, {height: 32});
 }
 
 function initClock() {
@@ -103,14 +65,6 @@ function connectWiFi() {
     });
 }
 
-function draw(text) {
-    if (text) {
-        g.clear();
-        g.drawStringDbl(text, 12, 3, 32);
-        g.flip();
-    }
-}
-
 function sendCMDSocket(cmd) {
     socket.write(cmd + '\r\n');
     return socket.read(0).replace('>', '').trim();
@@ -132,14 +86,17 @@ function sendCMD(cmd) {
 function showClock() {
     const time = rtc.readDateTime().split(' ')[1];
     const hms = time.split(':');
+    const hmsStr = hms[0] + ' : ' + hms[1] + ' : ' + hms[2];
     if (hms) {
-        draw(hms[0] + ' : ' + hms[1] + ' : ' + hms[2]);
+        g.clear();
+        g.drawStringDbl(hmsStr, 12, 3, 32);
+        g.flip();
     }
 }
 
 function showBattery() {
     g.clear();
-    g.drawImage(battery, 0, 0);
+    g.drawImage(logos.battery, 0, 0);
     g.flip();
     //console.log(sendCMD('ATRV'));
 }
@@ -148,11 +105,9 @@ E.on('init', () => {
     pinMode(2, 'input_pullup');
 
     setWatch(function(e) {
-        if ((selectedMode + 1) === modes.length) {
-            selectedMode = 0;
-        } else {
-            selectedMode++;
-        }
+        selectedMode = ((selectedMode + 1) === modes.length)
+            ? 0
+            : selectedMode + 1;
         console.log(modes[selectedMode]);
     }, 2, { repeat: true, edge: 'rising', debounce: 50 });
 
