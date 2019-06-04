@@ -7,17 +7,20 @@ const net = require('net');
 const logos = require('logos');
 const spi = new SPI();
 
-let socket;
-let rtc;
-let g;
+var socket;
+var rtc;
+var g;
+var data = '';
 
-const modes = ['clock', 'battery'];
-let selectedMode = 0;
+const modes = ['clock', 'date', 'battery'];
+var selectedMode = 0;
 
 require("FontDylex7x13").add(Graphics);
 
 Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
-    let gBuffer = Graphics.createArrayBuffer(128, h, 2, {msb: true});
+    let gBuffer = Graphics.createArrayBuffer(128, h, 2, {
+        msb: true
+    });
     gBuffer.setFontDylex7x13();
     let w = gBuffer.stringWidth(txt);
     let c = (w + 3) >> 2;
@@ -37,23 +40,36 @@ Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
 };
 
 function initDisplay() {
-    spi.setup({mosi: 13, sck: 14});
-    g = require("SSD1306").connectSPI(spi, 12, 16, '', {height: 32});
+    spi.setup({
+        mosi: 13,
+        sck: 14
+    });
+    g = require("SSD1306").connectSPI(spi, 12, 16, '', {
+        height: 32
+    });
 }
 
 function initClock() {
-    I2C1.setup({scl: 5, sda: 4});
-    rtc = require("DS3231").connect(I2C1, {DST: false});
+    I2C1.setup({
+        scl: 5,
+        sda: 4
+    });
+    rtc = require("DS3231").connect(I2C1, {
+        DST: false
+    });
 }
 
 function connectSocket() {
-    net.connect({host: host, port: port}, (s, err) => {
+    net.connect({
+        host: host,
+        port: port
+    }, (s, err) => {
         if (err) {
             console.log("Connection error: " + err);
             return;
         }
-        console.log('Connected to socket.');
         socket = s;
+        console.log('Connected to socket.');
     });
 }
 
@@ -74,6 +90,7 @@ function sendCMD(cmd) {
     if (socket) {
         if (!socket.conn) {
             connectSocket();
+            console.log('Connection to socket lost. Reconnecting...');
             return null;
         }
         return sendCMDSocket(cmd);
@@ -94,11 +111,25 @@ function showClock() {
     }
 }
 
+function showDate() {
+    const date = rtc.readDateTime().split(' ')[0];
+    const dmy = date.split('/');
+    const mdy = dmy[1] + '/' + dmy[0] + '/20' + dmy[2];
+    if (date) {
+        g.clear();
+        g.drawStringDbl(mdy, 3, 3, 32);
+        g.flip();
+    }
+}
+
 function showBattery() {
+    const tmp = sendCMD('ATRV');
+    if (tmp) data = tmp;
+    data = data.split('V')[0];
     g.clear();
     g.drawImage(logos.battery, 0, 0);
+    if (data) g.drawStringDbl(data + 'V', 42, 3, 32);
     g.flip();
-    //console.log(sendCMD('ATRV'));
 }
 
 E.on('init', () => {
@@ -106,15 +137,22 @@ E.on('init', () => {
     pinMode(0, 'input_pullup');
 
     setWatch(function(e) {
-        selectedMode = ((selectedMode + 1) === modes.length)
-            ? 0
-            : selectedMode + 1;
-        console.log(modes[selectedMode]);
-    }, 2, { repeat: true, edge: 'rising', debounce: 50 });
+        selectedMode = ((selectedMode + 1) === modes.length) ?
+            0 :
+            selectedMode + 1;
+    }, 2, {
+        repeat: true,
+        edge: 'rising',
+        debounce: 50
+    });
 
     setWatch(function(e) {
         console.log('Button H clicked');
-    }, 0, { repeat: true, edge: 'rising', debounce: 50 });
+    }, 0, {
+        repeat: true,
+        edge: 'rising',
+        debounce: 50
+    });
 
     initDisplay();
     initClock();
@@ -125,9 +163,12 @@ E.on('init', () => {
             case 'clock':
                 showClock();
                 break;
+            case 'date':
+                showDate();
+                break;
             case 'battery':
                 showBattery();
                 break;
         }
-    }, 1);
+    }, 200);
 });
