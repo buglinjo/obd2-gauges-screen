@@ -147,7 +147,12 @@ E.on('init', () => {
     });
 
     setWatch(function(e) {
-        console.log('Button H clicked');
+        const isLongPress = (e.time-e.lastTime) > 0.5;
+        if (isLongPress) {
+            console.log('H LONG press');
+        } else {
+            console.log('H SHORT press');
+        }
     }, 0, {
         repeat: true,
         edge: 'rising',
