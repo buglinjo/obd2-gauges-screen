@@ -40,11 +40,11 @@ Graphics.prototype.drawStringDbl = (txt, px, py, h) => {
 };
 
 function initDisplay() {
-    spi.setup({
-        mosi: 13,
-        sck: 14
+    I2C1.setup({
+        scl: 5,
+        sda: 4
     });
-    g = require("SSD1306").connectSPI(spi, 12, 16, '', {
+    g = require("SSD1306").connect(I2C1, '', {
         height: 32
     });
 }
@@ -83,14 +83,14 @@ function connectWiFi() {
 
 function sendCMDSocket(cmd) {
     socket.write(cmd + '\r\n');
-    return socket.read(0).replace('>', '').trim();
+    return socket.read(0).split('>')[0].trim().replace(cmd, '');
 }
 
 function sendCMD(cmd) {
     if (socket) {
         if (!socket.conn) {
             connectSocket();
-            console.log('Connection to socket lost. Reconnecting...');
+            console.log('Connection to the socket lost. Reconnecting...');
             return null;
         }
         return sendCMDSocket(cmd);
@@ -125,10 +125,9 @@ function showDate() {
 function showBattery() {
     const tmp = sendCMD('ATRV');
     if (tmp) data = tmp;
-    data = data.split('V')[0];
     g.clear();
     g.drawImage(logos.battery, 0, 0);
-    if (data) g.drawStringDbl(data + 'V', 42, 3, 32);
+    if (data) g.drawStringDbl(data, 42, 3, 32);
     g.flip();
 }
 
@@ -147,7 +146,7 @@ E.on('init', () => {
     });
 
     setWatch(function(e) {
-        const isLongPress = (e.time-e.lastTime) > 0.5;
+        const isLongPress = (e.time - e.lastTime) > 0.5;
         if (isLongPress) {
             console.log('H LONG press');
         } else {
